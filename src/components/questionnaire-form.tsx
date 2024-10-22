@@ -24,6 +24,7 @@ import {
     Answer,
     fetchQuestionnaireDataById,
     submitQuestionnaireAnswers,
+    InsertAnswer,
 } from "@/lib/supabase";
 
 const QUESTION_TYPES = {
@@ -63,7 +64,6 @@ export function QuestionnaireForm({ id }: { id: number }) {
         async function loadQuestionnaireData() {
             try {
                 const data = await fetchQuestionnaireDataById(id);
-                console.log(data);
                 setQuestionnaire(data.questionnaire);
                 setQuestions(data.questions);
 
@@ -88,8 +88,8 @@ export function QuestionnaireForm({ id }: { id: number }) {
                         const type = question?.question?.type;
                         if (type in QUESTION_TYPES) {
                             const typeInfo = QUESTION_TYPES[type as keyof typeof QUESTION_TYPES];
-                            acc[question?.id?.toString() ?? ""] = data.lastAnswers[index]
-                                ? typeInfo.fromAnswer(data.lastAnswers[index])
+                            acc[question?.id?.toString() ?? ""] = data.answers[index]
+                                ? typeInfo.fromAnswer(data.answers[index])
                                 : typeInfo.defaultValue;
                         }
                         return acc;
@@ -112,13 +112,13 @@ export function QuestionnaireForm({ id }: { id: number }) {
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         if (!questionnaire) return;
-        console.log({ values });
-        const answers = questions.map((question) => {
+        const answers: InsertAnswer[] = questions.map((question) => {
             const type = question?.question?.type;
             if (type == "mcq") {
                 return {
                     question_id: question.id,
                     answer: {
+                        text: null,
                         options: values[question.id],
                     },
                 };
@@ -127,6 +127,7 @@ export function QuestionnaireForm({ id }: { id: number }) {
                     question_id: question.id,
                     answer: {
                         text: values[question.id],
+                        options: null,
                     },
                 };
             }

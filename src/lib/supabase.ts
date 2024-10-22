@@ -27,21 +27,24 @@ export type QuestionnaireJunction = {
 };
 
 export type AnswerSet = {
-    id: number | null;
+    id: number;
     questionnaire_id: number;
     user_id: string;
     created_at: string | null;
 };
 
 export type Answer = {
-    id: number | null;
-    user_id: string | null;
+    id: number;
+    user_id: string;
     question_id: number;
     answer: {
         text: string | null;
         options: Array<string> | null;
     };
 };
+
+export type InsertAnswerSet = Omit<AnswerSet, "id" | "created_at">;
+export type InsertAnswer = Omit<Answer, "id" | "user_id">;
 
 export async function fetchUserQuestionnairesAndAnswerSets() {
     const {
@@ -79,6 +82,29 @@ export async function fetchQuestionnaireDataById(id: number) {
 
     if (!user) {
         throw new Error("No authenticated user found");
+    }
+
+    return await fetchQuestionnaireDataByIdAndUser(id, user.id);
+}
+
+export async function fetchQuestionnaireDataByIdAndUser(
+    id: number,
+    user_id: string,
+    skip_answered: boolean = true,
+) {
+    if (skip_answered) {
+        const { data: answerSets, error: answerSetsError } = await supabase
+            .from("answer_sets")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("questionnaire_id", id);
+
+        if (answerSetsError) {
+            throw new Error(`Error fetching answer sets: ${answerSetsError.message}`);
+        }
+        if (answerSets.length > 0) {
+            throw new Error("Questionnaire already answered");
+        }
     }
 
     const { data: questionnaire, error: questionnaireError } = await supabase
@@ -121,7 +147,7 @@ export async function fetchQuestionnaireDataById(id: number) {
 
     const typedQuestionData = questionData as unknown as QuestionDataItem[];
     const questions: Question[] = [];
-    const lastAnswers: Answer[] = [];
+    const answers: Answer[] = [];
 
     for (const item of typedQuestionData) {
         questions.push({
@@ -131,9 +157,16 @@ export async function fetchQuestionnaireDataById(id: number) {
 
         const { data: answerData, error: answerError } = await supabase
             .from("answers")
-            .select("*")
-            .eq("user_id", user.id)
+            .select(
+                `
+                *,
+                answer_sets:answer_sets (created_at)
+            `,
+            )
+            .eq("user_id", user_id)
             .eq("question_id", item.question_id)
+            .order("answer_sets(created_at)", { ascending: false })
+            .limit(1)
             .single();
 
         if (answerError && answerError.code !== "PGRST116") {
@@ -141,13 +174,16 @@ export async function fetchQuestionnaireDataById(id: number) {
             throw new Error(`Error fetching answer: ${answerError.message}`);
         }
 
-        lastAnswers.push(answerData || null);
+        answers.push(answerData || null);
     }
 
-    return { questionnaire, questions, lastAnswers };
+    return { questionnaire, questions, answers };
 }
 
-export async function submitQuestionnaireAnswers(questionnaireId: number, answers: Answer[]) {
+export async function submitQuestionnaireAnswers(
+    questionnaireId: number,
+    insertAnswers: InsertAnswer[],
+) {
     const {
         data: { user },
     } = await supabase.auth.getUser();
@@ -156,14 +192,14 @@ export async function submitQuestionnaireAnswers(questionnaireId: number, answer
         throw new Error("No authenticated user found");
     }
 
-    const answerSet = {
+    const insertAnswerSet: InsertAnswerSet = {
         questionnaire_id: questionnaireId,
         user_id: user.id,
     };
 
     const { data, error } = await supabase.rpc("submit_questionnaire_answers", {
-        p_answer_set: answerSet,
-        p_answers: answers,
+        p_answer_set: insertAnswerSet,
+        p_answers: insertAnswers,
     });
 
     if (error) {
@@ -171,4 +207,54 @@ export async function submitQuestionnaireAnswers(questionnaireId: number, answer
     }
 
     return data;
+}
+
+export type QuestionnaireCount = {
+    user_id: string;
+    email: string;
+    count: number;
+};
+
+export async function fetchAdminQuestionnaireCounts() {
+    const { data, error } = await supabase.rpc("get_questionnaire_count");
+
+    if (error && error.code !== "PGRST116") {
+        throw new Error(`Error fetching user data: ${error.message}`);
+    }
+
+    return data;
+}
+
+export type UserData = {
+    answerSet: AnswerSet;
+    questionnaire: Questionnaire;
+    questions: Question[];
+    answers: Answer[];
+};
+
+export async function fetchAdminUserData(user_id: string) {
+    const { data: userAnswerSets, error: answerSetsError } = await supabase
+        .from("answer_sets")
+        .select("*")
+        .eq("user_id", user_id)
+        .order("created_at", { ascending: false });
+
+    if (answerSetsError) {
+        throw new Error(`Error fetching answer sets: ${answerSetsError.message}`);
+    }
+
+    const userQuestionnaireData = [];
+    for (const answerSet of userAnswerSets) {
+        const questionnaireData = await fetchQuestionnaireDataByIdAndUser(
+            answerSet.questionnaire_id,
+            user_id,
+            false, // skip_answered
+        );
+        userQuestionnaireData.push({
+            answerSet,
+            ...questionnaireData,
+        });
+    }
+
+    return userQuestionnaireData;
 }

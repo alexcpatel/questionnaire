@@ -4,7 +4,7 @@ import { QuestionnaireSelector } from "@/components/questionnaire-selector";
 
 export default function QuestionnaireSelectorPage() {
     return (
-        <div className="min-h-screen w-full p-4">
+        <div className="min-h-screen w-full p-4 pt-16">
             <QuestionnaireSelector />
         </div>
     );

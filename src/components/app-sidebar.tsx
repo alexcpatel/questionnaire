@@ -1,7 +1,7 @@
 "use client";
 
 import { Session } from "@supabase/supabase-js";
-import { ChevronUp, LogOut, FileText } from "lucide-react";
+import { ChevronUp, LogOut, FileText, Monitor } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -69,7 +69,7 @@ export function AppSidebar() {
                 {
                     title: "Portal",
                     url: "/admin",
-                    icon: FileText,
+                    icon: Monitor,
                 },
             ],
         });
