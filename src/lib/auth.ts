@@ -14,9 +14,9 @@ export async function getUserRoles(userId: string) {
 
 export function getRedirectPath(roles: Array<string>) {
     if (roles.includes("admin")) {
-        return "/admin-panel";
+        return "/admin";
     } else if (roles.includes("user")) {
-        return "/questionnaire-selector";
+        return "/questionnaire";
     } else {
         return null;
     }

@@ -68,7 +68,7 @@ export function AppSidebar() {
             items: [
                 {
                     title: "Portal",
-                    url: "/admin-portal",
+                    url: "/admin",
                     icon: FileText,
                 },
             ],
@@ -80,7 +80,7 @@ export function AppSidebar() {
             items: [
                 {
                     title: "Questionnaires",
-                    url: "/questionnaire-selector",
+                    url: "/questionnaire",
                     icon: FileText,
                 },
             ],

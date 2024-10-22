@@ -21,8 +21,12 @@ import { getUserRoles, getRedirectPath } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
 const formSchema = z.object({
-    email: z.string(),
-    password: z.string(),
+    email: z.string().min(1, {
+        message: "Email must not be empty.",
+    }),
+    password: z.string().min(1, {
+        message: "Password must not be empty.",
+    }),
 });
 
 export function LoginForm() {
