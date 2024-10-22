@@ -27,15 +27,15 @@ export type QuestionnaireJunction = {
 };
 
 export type AnswerSet = {
-    id: number;
+    id: number | null;
     questionnaire_id: number;
     user_id: string;
-    created_at: string;
+    created_at: string | null;
 };
 
 export type Answer = {
-    id: number;
-    user_id: string;
+    id: number | null;
+    user_id: string | null;
     question_id: number;
     answer: {
         text: string | null;
@@ -145,4 +145,30 @@ export async function fetchQuestionnaireDataById(id: number) {
     }
 
     return { questionnaire, questions, lastAnswers };
+}
+
+export async function submitQuestionnaireAnswers(questionnaireId: number, answers: Answer[]) {
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+        throw new Error("No authenticated user found");
+    }
+
+    const answerSet = {
+        questionnaire_id: questionnaireId,
+        user_id: user.id,
+    };
+
+    const { data, error } = await supabase.rpc("submit_questionnaire_answers", {
+        p_answer_set: answerSet,
+        p_answers: answers,
+    });
+
+    if (error) {
+        throw new Error(`Error submitting answers: ${error.message}`);
+    }
+
+    return data;
 }

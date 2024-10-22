@@ -4,23 +4,60 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { FieldValues, Form, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { fetchQuestionnaireDataById, Question, Questionnaire, Answer } from "@/lib/supabase";
+import {
+    Question,
+    Questionnaire,
+    Answer,
+    fetchQuestionnaireDataById,
+    submitQuestionnaireAnswers,
+} from "@/lib/supabase";
+
+const QUESTION_TYPES = {
+    input: {
+        formSchema: () =>
+            z.string().min(1, {
+                message: "Answer must not be empty.",
+            }),
+        fromAnswer: (answer: Answer) => answer?.answer?.text ?? "",
+        defaultValue: "",
+    },
+    mcq: {
+        formSchema: () =>
+            z.array(z.string()).refine((value) => value.some((item) => item), {
+                message: "At least one answer is required.",
+            }),
+        fromAnswer: (answer: Answer) => answer?.answer?.options ?? [],
+        defaultValue: [],
+    },
+};
 
 export function QuestionnaireForm({ id }: { id: number }) {
     const router = useRouter();
 
     const [questionnaire, setQuestionnaire] = useState<Questionnaire | null>(null);
     const [questions, setQuestions] = useState<Question[]>([]);
-    const [lastAnswers, setLastAnswers] = useState<Answer[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [formSchema, setFormSchema] = useState<z.ZodObject<z.ZodRawShape>>(z.object({}));
+
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(formSchema),
+        defaultValues: {},
+    });
 
     useEffect(() => {
         async function loadQuestionnaireData() {
@@ -29,7 +66,39 @@ export function QuestionnaireForm({ id }: { id: number }) {
                 console.log(data);
                 setQuestionnaire(data.questionnaire);
                 setQuestions(data.questions);
-                setLastAnswers(data.lastAnswers);
+
+                const newFormSchema = z.object(
+                    data.questions.reduce(
+                        (acc, question) => {
+                            const type = question?.question?.type;
+                            if (type in QUESTION_TYPES) {
+                                acc[question?.id?.toString() ?? ""] =
+                                    QUESTION_TYPES[
+                                        type as keyof typeof QUESTION_TYPES
+                                    ].formSchema();
+                            }
+                            return acc;
+                        },
+                        {} as Record<string, z.ZodTypeAny>,
+                    ),
+                );
+
+                const defaultValues = data.questions.reduce(
+                    (acc, question, index) => {
+                        const type = question?.question?.type;
+                        if (type in QUESTION_TYPES) {
+                            const typeInfo = QUESTION_TYPES[type as keyof typeof QUESTION_TYPES];
+                            acc[question?.id?.toString() ?? ""] = data.lastAnswers[index]
+                                ? typeInfo.fromAnswer(data.lastAnswers[index])
+                                : typeInfo.defaultValue;
+                        }
+                        return acc;
+                    },
+                    {} as Record<string, string | string[]>,
+                );
+
+                setFormSchema(newFormSchema);
+                form.reset(defaultValues);
                 setLoading(false);
             } catch (error) {
                 setError(`Failed to load questionnaire data: ${error}`);
@@ -39,100 +108,96 @@ export function QuestionnaireForm({ id }: { id: number }) {
         }
 
         loadQuestionnaireData();
-    }, [id]);
+    }, [id, form]);
 
-    const QUESTION_TYPES = {
-        text: {
-            formSchema: () =>
-                z.string().min(1, {
-                    message: "Answer must not be empty.",
-                }),
-            fromAnswer: (answer: Answer) => answer?.answer?.text ?? "",
-            defaultValue: "",
-            renderInput: (question: Question, field: FieldValues) => (
-                <Input placeholder="answer" {...field} />
-            ),
-        },
-        mcq: {
-            formSchema: () =>
-                z.array(z.string()).refine((value) => value.some((item) => item), {
-                    message: "At least one answer is required.",
-                }),
-            fromAnswer: (answer: Answer) => answer?.answer?.options ?? [],
-            defaultValue: [],
-            renderInput: (question: Question, field: FieldValues) => (
-                <>
-                    {(question.question?.options ?? []).map((option, index) => (
-                        <Checkbox
-                            key={index}
-                            checked={field.value?.includes(option)}
-                            onCheckedChange={(checked) => {
-                                return checked
-                                    ? field.onChange([...field.value, option])
-                                    : field.onChange(
-                                          field.value?.filter((value: string) => value !== option),
-                                      );
-                            }}
-                        />
-                    ))}
-                </>
-            ),
-        },
-    };
-
-    const formSchema = z.object(
-        questions.reduce(
-            (acc, question) => {
-                const type = question.question.type;
-                if (type in QUESTION_TYPES) {
-                    acc[question.id.toString()] =
-                        QUESTION_TYPES[type as keyof typeof QUESTION_TYPES].formSchema();
-                }
-                return acc;
-            },
-            {} as Record<string, z.ZodTypeAny>,
-        ),
-    );
-
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
-        defaultValues: questions.reduce(
-            (acc, question, index) => {
-                const type = question.question.type;
-                if (type in QUESTION_TYPES) {
-                    const typeInfo = QUESTION_TYPES[type as keyof typeof QUESTION_TYPES];
-                    acc[question.id.toString()] = lastAnswers[index]
-                        ? typeInfo.fromAnswer(lastAnswers[index])
-                        : typeInfo.defaultValue;
-                }
-                return acc;
-            },
-            {} as Record<string, string | string[]>,
-        ),
-    });
-
-    const handleSubmit = async (values: z.infer<typeof formSchema>) => {
-        // await submitAnswers(questionnaire.id, answers);
+    const onSubmit = async (values: z.infer<typeof formSchema>) => {
+        if (!questionnaire) return;
+        console.log({ values });
+        const answers = questions.map((question) => {
+            const type = question?.question?.type;
+            if (type == "mcq") {
+                return {
+                    question_id: question.id,
+                    answer: {
+                        options: values[question.id],
+                    },
+                };
+            } else {
+                return {
+                    question_id: question.id,
+                    answer: {
+                        text: values[question.id],
+                    },
+                };
+            }
+        });
+        await submitQuestionnaireAnswers(questionnaire.id, answers);
         router.push("/questionnaire");
     };
 
-    const renderInput = (question: Question, field: FieldValues) => {
-        const type = question.question.type;
-        if (type in QUESTION_TYPES) {
-            return QUESTION_TYPES[type as keyof typeof QUESTION_TYPES].renderInput(question, field);
-        }
-        return <Input placeholder="answer" {...field} />;
-    };
-
     const renderQuestion = (question: Question) => {
+        const type = question?.question?.type;
+        if (type == "mcq") {
+            const options = question?.question?.options ?? [];
+            return (
+                <div key={question?.id} className="space-y-1.5">
+                    <FormLabel className="mb-4 block">
+                        {question?.question?.question ?? ""}
+                    </FormLabel>
+                    {options.map((option, index) => (
+                        <FormField
+                            key={index}
+                            control={form.control}
+                            name={question?.id?.toString() ?? ""}
+                            render={({ field }) => {
+                                return (
+                                    <FormItem
+                                        key={index}
+                                        className="flex flex-row items-center space-x-2"
+                                    >
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value?.includes(option)}
+                                                onCheckedChange={(checked) => {
+                                                    return checked
+                                                        ? field.onChange([...field.value, option])
+                                                        : field.onChange(
+                                                              field.value?.filter(
+                                                                  (value: string) =>
+                                                                      value !== option,
+                                                              ),
+                                                          );
+                                                }}
+                                            />
+                                        </FormControl>
+                                        <FormLabel
+                                            className="text-sm font-normal leading-none"
+                                            style={{ marginTop: 0 }}
+                                        >
+                                            {option}
+                                        </FormLabel>
+                                    </FormItem>
+                                );
+                            }}
+                        />
+                    ))}
+                </div>
+            );
+        }
+
         return (
             <FormField
+                key={question?.id}
                 control={form.control}
-                name={question.id.toString()}
+                name={question?.id?.toString() ?? ""}
                 render={({ field }) => (
                     <FormItem>
-                        <FormLabel>{question.question.question ?? ""}</FormLabel>
-                        <FormControl>{renderInput(question, field)}</FormControl>
+                        <FormLabel className="mb-4 block">
+                            {question?.question?.question ?? ""}
+                        </FormLabel>
+                        <FormControl>
+                            <Input placeholder="answer" {...field} />
+                        </FormControl>
                         <FormMessage />
                     </FormItem>
                 )}
@@ -145,7 +210,7 @@ export function QuestionnaireForm({ id }: { id: number }) {
             <>
                 <h1 className="mb-6 text-2xl font-bold">{questionnaire?.name}</h1>
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                         {questions.map((question) => renderQuestion(question))}
                         <Button type="submit">Submit</Button>
                     </form>

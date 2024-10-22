@@ -15,7 +15,7 @@ export default async function QuestionnairePage({ params }: QuestionnairePagePro
     }
 
     return (
-        <div className="min-h-screen w-full p-4">
+        <div className="min-h-screen w-full p-4 pt-16">
             <QuestionnaireForm id={questionnaireId} />
         </div>
     );
