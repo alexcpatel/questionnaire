@@ -14,6 +14,21 @@ This is a Next.js-based web application for managing and answering questionnaire
 -   Dark mode support
 -   Responsive design with mobile sidebar
 
+## Users
+
+User registration functionality is not currently available. Instead, the application uses the following pre-configured user accounts for testing and demonstration purposes:
+
+| Role  | Email              | Password |
+| ----- | ------------------ | -------- |
+| Admin | admin@example.com  | admin    |
+| Admin | admin2@example.com | admin    |
+| User  | user@example.com   | user     |
+| User  | user2@example.com  | user     |
+| User  | user3@example.com  | user     |
+| User  | user4@example.com  | user     |
+
+Users can complete questionnaires assigned to them, and their responses are stored in the database. Admins have access to view all users' questionnaire responses through the admin panel. Currently, there is no user interface for deleting questionnaire responses; they can only be removed manually from the database.
+
 ## Technologies Used
 
 -   Next.js 15
