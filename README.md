@@ -4,7 +4,7 @@ This is a Next.js-based web application for managing and answering questionnaire
 
 ## Demo
 
-[![Questionnaire Demo](https://img.youtube.com/vi/uLdKaj_ffao/0.jpg)](https://www.youtube.com/watch?v=uLdKaj_ffao)
+[![YouTube](http://i.ytimg.com/vi/uLdKaj_ffao/hqdefault.jpg)](https://www.youtube.com/watch?v=uLdKaj_ffao)
 
 ## Features
 
