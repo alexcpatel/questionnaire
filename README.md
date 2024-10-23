@@ -16,13 +16,12 @@ This is a Next.js-based web application for managing and answering questionnaire
 
 ## Technologies Used
 
--   Next.js 15.0.0
--   React 18.2.0
+-   Next.js 15
+-   React 19
 -   TypeScript
 -   Tailwind CSS
--   Shadcn UI components
+-   Shadcn/Radix UI components
 -   Supabase for backend and authentication
--   Radix UI components
 -   React Hook Form for form handling
 -   Zod for schema validation
 -   Cursor as a text editor and AI copilot
