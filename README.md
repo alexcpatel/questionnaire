@@ -39,7 +39,8 @@ Users can complete questionnaires assigned to them, and their responses are stor
 -   Supabase for backend and authentication
 -   React Hook Form for form handling
 -   Zod for schema validation
--   Cursor as a text editor and AI copilot
+-   Cursor AI for text editor and copilot
+-   Vercel for deployment
 
 ## Getting Started
 
