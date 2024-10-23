@@ -84,29 +84,23 @@ export async function fetchQuestionnaireDataById(id: number) {
         throw new Error("No authenticated user found");
     }
 
+    const { data: answerSets, error: answerSetsError } = await supabase
+        .from("answer_sets")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("questionnaire_id", id);
+
+    if (answerSetsError) {
+        throw new Error(`Error fetching answer sets: ${answerSetsError.message}`);
+    }
+    if (answerSets.length > 0) {
+        throw new Error("Questionnaire already answered");
+    }
+
     return await fetchQuestionnaireDataByIdAndUser(id, user.id);
 }
 
-export async function fetchQuestionnaireDataByIdAndUser(
-    id: number,
-    user_id: string,
-    skip_answered: boolean = true,
-) {
-    if (skip_answered) {
-        const { data: answerSets, error: answerSetsError } = await supabase
-            .from("answer_sets")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("questionnaire_id", id);
-
-        if (answerSetsError) {
-            throw new Error(`Error fetching answer sets: ${answerSetsError.message}`);
-        }
-        if (answerSets.length > 0) {
-            throw new Error("Questionnaire already answered");
-        }
-    }
-
+export async function fetchQuestionnaireDataByIdAndUser(id: number, user_id: string) {
     const { data: questionnaire, error: questionnaireError } = await supabase
         .from("questionnaires")
         .select("*")
@@ -248,7 +242,6 @@ export async function fetchAdminUserData(user_id: string) {
         const questionnaireData = await fetchQuestionnaireDataByIdAndUser(
             answerSet.questionnaire_id,
             user_id,
-            false, // skip_answered
         );
         userQuestionnaireData.push({
             answerSet,
