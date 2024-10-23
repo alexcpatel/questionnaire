@@ -20,7 +20,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-    title: "Questionnaires",
+    title: "Questionnaire",
     description: "Answer some questionnaires.",
 };
 

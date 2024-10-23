@@ -1,13 +1,16 @@
 import { QuestionnaireForm } from "@/components/questionnaire-form";
 
-interface QuestionnairePageProps {
-    params: {
-        id: string;
-    };
-}
+type PageProps = {
+    params?: Promise<{ id: string }>;
+    searchParams?: Promise<unknown>;
+};
 
-export default async function QuestionnairePage({ params }: QuestionnairePageProps) {
-    const { id } = await params;
+export default async function QuestionnairePage({ params }: PageProps) {
+    const receivedParams = await params;
+    const { id } = receivedParams ?? {};
+    if (typeof id !== "string") {
+        return <div>Invalid questionnaire ID</div>;
+    }
     const questionnaireId = parseInt(id, 10);
 
     if (isNaN(questionnaireId)) {

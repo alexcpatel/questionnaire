@@ -1,4 +1,3 @@
-/* eslint-disable tailwindcss/no-custom-classname */
 "use client";
 
 import * as SheetPrimitive from "@radix-ui/react-dialog";
