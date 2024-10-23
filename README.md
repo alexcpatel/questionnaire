@@ -25,6 +25,7 @@ This is a Next.js-based web application for managing and answering questionnaire
 -   Radix UI components
 -   React Hook Form for form handling
 -   Zod for schema validation
+-   Cursor as a text editor and AI copilot
 
 ## Getting Started
 
@@ -51,10 +52,6 @@ This is a Next.js-based web application for managing and answering questionnaire
 -   `src/components`: React components
 -   `src/lib`: Utility functions and Supabase client
 -   `src/hooks`: Custom React hooks
-
-## Data
-
-The data is stored in Supabase. Foreign keys are used for querying data across tables. Policies are used for authorization, such as only allowing users to see their own data, or admins to see all data. Row level security is used to protect sensitive data.
 
 ## Database Structure and Functions
 
